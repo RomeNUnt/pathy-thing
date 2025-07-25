@@ -1,6 +1,7 @@
 import random
 import time
 import numpy as np
+import cv2 as cv
 
 # Environment
 
@@ -10,12 +11,24 @@ array = [[-1, -1, -1, -50, -1],
          [-1, -1, -50, 100, -1],
          [-1, -1, -50, -50, -1],
          [-1, -50, -1, -1, -1],
-         [-1, -1, -1, -50, -1],
+         [-1, -1, -1, -50, -50],
          [-1, -1, -1, -1, -1]]
+array = np.array(array)
 
-rows, cols = len(array), len(array[0])
-actions = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # up, down, left, right
+rows, cols = array.shape
+cell_size = 50
+actions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 directions = ["Up", "Down", "Left", "Right"]
+
+# Create canvas
+image = np.zeros((rows * cell_size, cols * cell_size, 3), dtype=np.uint8)
+
+# Color map: BGR format
+color_map = {
+    -50: (0, 0, 255),     # Red
+    -1: (255, 255, 200),  # Light blue
+    100: (0, 255, 0),     # Green
+}
 
 # Q-table
 Q = np.zeros((rows, cols, len(actions)))
@@ -24,8 +37,9 @@ Q = np.zeros((rows, cols, len(actions)))
 alpha = 0.1        # learning rate
 gamma = 0.9        # discount factor
 epsilon = 0.7      # exploration rate
-episodes = 1000
+episodes = 10000
 start = (5, 0)
+goal = (1, 3)
 max_steps = 100
 
 # Training loop
@@ -89,8 +103,39 @@ while True:
     path.append((i, j))
     direction_of_path.append(directions[action_index])
     cost += array[i][j]
-
 print("Path:", direction_of_path)
+
+# Tiles
+for i in range(rows):
+    for j in range(cols):
+        value = array[i][j]
+        color = color_map.get(value, (50, 50, 50))
+        top_left = (j * cell_size, i * cell_size)
+        bottom_right = ((j + 1) * cell_size, (i + 1) * cell_size)
+        cv.rectangle(image, top_left, bottom_right, color, thickness=-1)
+
+# Grid Lines
+for i in range(rows + 1):
+    cv.line(image, (0, i * cell_size), (cols * cell_size, i * cell_size), (100, 100, 100), 1)
+for j in range(cols + 1):
+    cv.line(image, (j * cell_size, 0), (j * cell_size, rows * cell_size), (100, 100, 100), 1)
+
+# Path
+for (i, j) in path:
+    center = (j * cell_size + cell_size // 2, i * cell_size + cell_size // 2)
+    cv.circle(image, center, 8, (0, 255, 255), -1)  # Yellow
+
+# Mark start and goal
+start_center = (start[1] * cell_size + cell_size // 2, start[0] * cell_size + cell_size // 2)
+goal_center = (goal[1] * cell_size + cell_size // 2, goal[0] * cell_size + cell_size // 2)
+cv.circle(image, start_center, 10, (255, 0, 0), -1)  # Blue start
+cv.circle(image, goal_center, 10, (0, 255, 0), -1)   # Green goal
+
+# Show the image using OpenCV
+cv.imshow("RL Path", image)
 
 end_time = time.time()
 print("Runtime:", end_time - start_time, "seconds")
+
+cv.waitKey(0)
+cv.destroyAllWindows()
